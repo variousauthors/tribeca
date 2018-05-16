@@ -58,6 +58,8 @@ export class MarketTrade implements ITimestamped {
                 public make_side: Side) {}
 }
 
+// So I just added these right into here. Most of the
+// Tokens on Chankura seem to be pretty unknown
 export enum Currency { 
     USD, 
     BTC, 
@@ -88,7 +90,24 @@ export enum Currency {
     WAVES, 
     BTU, 
     MAID, 
-    AMP 
+    AMP,
+    ZAR,
+    CREDO,
+    CVC,
+    DALA,
+    CAT,
+    GRID,
+    CAS,
+    SWM,
+    C20,
+    BEE,
+    NMR,
+    POLY,
+    SHIP,
+    EXC,
+    FACE,
+    BNTY,
+    HOT
 }
 
 export function toCurrency(c: string) : Currency|undefined {
