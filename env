@@ -1,7 +1,7 @@
 # General config properties. Properties with `NULL` should be replaced with your own exchange account information.
 TRIBECA_MODE=dev
-EXCHANGE=null
-TradedPair=BTC/USD
+EXCHANGE=chankura
+TradedPair=ETH/ZAR
 WebClientUsername=NULL
 WebClientPassword=NULL
 WebClientListenPort=3000
@@ -38,6 +38,11 @@ BitfinexHttpUrl=https://api.bitfinex.com/v1
 BitfinexKey=NULL
 BitfinexSecret=NULL
 BitfinexOrderDestination=Bitfinex
+## Chankura
+ChankuraHttpUrl=https://trading.chankura.com/api/v2
+ChankuraKey=NULL
+ChankuraSecret=NULL
+ChankuraOrderDestination=Chankura
 
 # PROD - values provided for reference.
 ## HitBtc
