@@ -22,6 +22,26 @@ var shortId = require("shortid");
 /*
  * Interfaces.
  */
+interface ChankuraPositionResponseItem {
+    type: string;
+    currency: string;
+    amount: string;
+    balance: string;
+    locked: string;
+}
+// not sure what symbol_details corresponds to in Chankura
+// it is "products" in coinbase and "symbols" in hitbtc...
+// for now I'm using the id field for the market code eg btcusd
+interface SymbolDetails {
+    id: string,
+    pair: string,
+    price_precision: number,
+    initial_margin:string,
+    minimum_margin:string,
+    maximum_order_size:string,
+    minimum_order_size:string,
+    expiration:string
+}
 // I implemented a bunch of the interfaces so that they fit the Chankura API.
 // Note. I have id: string but on Chankura it say it's an integer. Will this cause issues?
 interface ChankuraMarketLevel {
@@ -345,8 +365,6 @@ class ChankuraOrderEntryGateway implements Interfaces.IOrderEntryGateway {
 };
 
 
-//TODO test the authorized post methods. 
-// Clean code a bit.
 class ChankuraHttp {
   ConnectChanged = new Utils.Evt<Models.ConnectivityStatus>(); 
   private _timeout = 15000;
@@ -432,28 +450,46 @@ class ChankuraHttp {
   };
 }
 
+class ChankuraPositionGateway implements Interfaces.IPositionGateway {
+  PositionUpdate = new Utils.Evt<Models.CurrencyPosition>();
+  private onRefreshPositions = () => {
+    let query = {};
+    this._http.post<{}, ChankuraPositionResponseItem[]>( "GET" ,"/members/me.json", {}).then(res => {
+      console.log(res.data['accounts']);
+      _.forEach(res.data['accounts'], p => {
+        var amt = parseFloat(p.balance);
+        var cur = Models.toCurrency(p.currency);
+        var held = parseFloat(p.locked);
+        var rpt = new Models.CurrencyPosition(amt, held, cur);
+        this.PositionUpdate.trigger(rpt);
+      });
+    }).done();
+  }
+
+  private _log = log("tribeca:gateway:ChankuraPG");
+  constructor(timeProvider: Utils.ITimeProvider, private _http: ChankuraHttp) {
+    timeProvider.setInterval(this.onRefreshPositions, moment.duration(15, "seconds"));
+    this.onRefreshPositions();
+  }
+}
+
 class ChankuraGatewayDetails implements Interfaces.IExchangeDetailsGateway {
   public get hasSelfTradePrevention() {
     return false;
   }
-
   name(): string {
     return "Chankura";
   }
-
+  // No Maker and taker fees on Chankura !.
   makeFee(): number {
-    return 0.001;
+    return 0.000;
   }
-
   takeFee(): number {
-    return 0.002;
+    return 0.000;
   }
-
   exchange(): Models.Exchange {
-    return Models.Exchange.Null;
-    // return Models.Exchange.Chankura;
+    return Models.Exchange.Chankura;
   }
-
   constructor(public minTickIncrement: number) { }
 }
 
@@ -469,37 +505,16 @@ class Chankura extends Interfaces.CombinedGateway {
     // const monitor = new RateLimitMonitor(60, moment.duration(1, "minutes"));
     const http = new ChankuraHttp(config, /* monitor */);
     const details = new ChankuraGatewayDetails(pricePrecision);
-
-    /*
-    const orderGateway = config.GetString("BitfinexOrderDestination") == "Bitfinex"
-        ? <Interfaces.IOrderEntryGateway>new BitfinexOrderEntryGateway(timeProvider, details, http, symbol)
+    const orderGateway = config.GetString("ChankuraOrderDestination") == "Chankura"
+        ? <Interfaces.IOrderEntryGateway>new ChankuraOrderEntryGateway(timeProvider, details, http, symbol)
         : new NullGateway.NullOrderGateway();
-    */
-
-    const orderGateway = new NullGateway.NullOrderGateway();
-
-    const minTick = config.GetNumber("NullGatewayTick");
-
+      
     super(
       new ChankuraMarketDataGateway(timeProvider, http, symbol),
       orderGateway,
-      new NullGateway.NullPositionGateway(pair),
+      new ChankuraPositionGateway(timeProvider, http),
       details)
   }
-}
-
-// not sure what symbol_details corresponds to in Chankura
-// it is "products" in coinbase and "symbols" in hitbtc...
-// for now I'm using the id field for the market code eg btcusd
-interface SymbolDetails {
-    id: string,
-    pair: string,
-    price_precision: number,
-    initial_margin:string,
-    minimum_margin:string,
-    maximum_order_size:string,
-    minimum_order_size:string,
-    expiration:string
 }
 
 export async function createChankura(timeProvider: Utils.ITimeProvider, config: Config.IConfigProvider, pair: Models.CurrencyPair): Promise<Interfaces.CombinedGateway> {
